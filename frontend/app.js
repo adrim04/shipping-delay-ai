@@ -88,20 +88,26 @@ $("#randomBtn").addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------- historial  (GET /predictions)
+// Contadores de solicitud: solo la respuesta más reciente actualiza la pantalla.
+let histSeq = 0, versionSeq = 0, detailSeq = 0;
+
 async function loadHistory() {
+  const seq = ++histSeq;
+  loadVersionOptions();                       // independiente: un fallo de /models no bloquea el historial
   const filter = $("#histFilter").value;
   const version = $("#histVersion").value;
   const q = `?limit=${PAGE}&offset=${histOffset}${filter !== "" ? `&predicted_class=${filter}` : ""}` +
     (version ? `&model_version=${encodeURIComponent(version)}` : "");
   try {
-    await loadVersionOptions();
     const h = await api(`/predictions${q}`);
+    if (seq !== histSeq) return;              // llegó una consulta más nueva
     const tb = $("#histTable tbody");
     tb.innerHTML = h.items.length ? h.items.map((p) => `<tr data-id="${p.id}">
-      <td>${p.id}</td><td>${fmtDate(p.created_at)}</td><td>${p.warehouse_block}</td><td>${p.mode_of_shipment}</td>
+      <td><button type="button" class="link-btn" data-id="${p.id}" aria-label="Ver detalle de la predicción ${p.id}">${p.id}</button></td>
+      <td>${fmtDate(p.created_at)}</td><td>${esc(p.warehouse_block)}</td><td>${esc(p.mode_of_shipment)}</td>
       <td class="num">${p.customer_care_calls}</td><td class="num">${p.customer_rating}</td>
       <td class="num">${p.cost_of_the_product}</td><td class="num">${p.prior_purchases}</td>
-      <td>${p.product_importance}</td><td>${p.gender}</td><td class="num">${p.discount_offered}</td>
+      <td>${esc(p.product_importance)}</td><td>${esc(p.gender)}</td><td class="num">${p.discount_offered}</td>
       <td class="num">${p.weight_in_gms}</td><td>${labelPill(p.predicted_class, p.predicted_label)}</td>
       <td class="num">${pct(p.probability_delay)}</td><td><code>${esc(p.model_version)}</code></td></tr>`).join("")
       : `<tr><td colspan="15" class="empty">Aún no hay predicciones.</td></tr>`;
@@ -109,21 +115,30 @@ async function loadHistory() {
     $("#pageInfo").textContent = `Página ${page} de ${pages} · ${h.total} registros`;
     $("#prevPage").disabled = histOffset === 0;
     $("#nextPage").disabled = histOffset + PAGE >= h.total;
-  } catch (err) { toast(`Error: ${err.message}`, true); }
+  } catch (err) { if (seq === histSeq) toast(`Error: ${err.message}`, true); }
 }
+
 // Opciones del filtro de versión  (GET /models)
 async function loadVersionOptions() {
-  const sel = $("#histVersion"), current = sel.value;
-  const all = await api("/models");
-  sel.innerHTML = `<option value="">Todas las versiones</option>` +
-    all.map((m) => `<option value="${esc(m.version)}">${esc(m.version)} · ${esc(m.status)}</option>`).join("");
-  sel.value = current;
+  const seq = ++versionSeq;
+  try {
+    const all = await api("/models");
+    if (seq !== versionSeq) return;
+    const sel = $("#histVersion"), current = sel.value;   // se lee al llegar la respuesta: conserva la última elección
+    sel.innerHTML = `<option value="">Todas las versiones</option>` +
+      all.map((m) => `<option value="${esc(m.version)}">${esc(m.version)} · ${esc(m.status)}</option>`).join("");
+    sel.value = all.some((m) => m.version === current) ? current : "";
+  } catch (err) {
+    if (seq === versionSeq) toast(`No se pudieron cargar las versiones: ${err.message}`, true);
+  }
 }
 
 // Detalle de una predicción  (GET /predictions/{id})
 async function showDetail(id) {
+  const seq = ++detailSeq;
   try {
     const p = await api(`/predictions/${id}`);
+    if (seq !== detailSeq) return;            // se pidió otra fila o se cerró la tarjeta
     document.querySelectorAll("#histTable tbody tr").forEach((tr) => tr.classList.toggle("selected", tr.dataset.id === String(id)));
     $("#detailTitle").textContent = `Detalle de la predicción #${p.id}`;
     const rows = [
@@ -140,13 +155,18 @@ async function showDetail(id) {
     $("#detailBody").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
     $("#detailCard").hidden = false;
     $("#detailCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  } catch (err) { toast(`Error: ${err.message}`, true); }
+  } catch (err) { if (seq === detailSeq) toast(`Error: ${err.message}`, true); }
 }
+// Clic en cualquier parte de la fila (puntero) o Enter/Espacio en el botón del número (teclado)
 $("#histTable tbody").addEventListener("click", (e) => {
-  const tr = e.target.closest("tr[data-id]");
-  if (tr) showDetail(tr.dataset.id);
+  const el = e.target.closest("[data-id]");
+  if (el) showDetail(el.dataset.id);
 });
-$("#detailClose").addEventListener("click", () => { $("#detailCard").hidden = true; });
+$("#detailClose").addEventListener("click", () => {
+  detailSeq++;                                // invalida una consulta de detalle pendiente
+  $("#detailCard").hidden = true;
+  document.querySelectorAll("#histTable tbody tr.selected").forEach((tr) => tr.classList.remove("selected"));
+});
 $("#histVersion").addEventListener("change", () => { histOffset = 0; loadHistory(); });
 
 $("#histRefresh").addEventListener("click", loadHistory);

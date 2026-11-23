@@ -111,3 +111,6 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 #histTable tbody tr[data-id] { cursor: pointer; }
 #histTable tbody tr[data-id]:hover { background: #f6f4ef; }
 #histTable tbody tr.selected { background: #e7f2ee; }
+.link-btn { background: none; border: 0; padding: 2px 4px; color: var(--brand); font-weight: 600; text-decoration: underline;
+  border-radius: 4px; cursor: pointer; }
+.link-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
