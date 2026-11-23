@@ -75,3 +75,22 @@ def test_upload_and_retrain(client):
     assert r.status_code == 200
     assert r.json()["status"] in ("COMPLETADO", "RECHAZADO")
     assert len(client.get(f"{API}/models").json()) >= 2
+
+
+def test_filter_excludes_other_versions(client):
+    """Con predicciones de dos versiones, el filtro devuelve solo las de la versión pedida."""
+    before = client.post(f"{API}/predictions", json=SAMPLE).json()["model_version"]
+    # Reentrenar con el dataset base y un algoritmo que supera la compuerta -> nueva versión activa
+    r = client.post(f"{API}/retrain", json={"dataset_id": 1, "algorithm": "GradientBoosting"}).json()
+    assert r["status"] == "COMPLETADO"
+    after = client.post(f"{API}/predictions", json=SAMPLE).json()["model_version"]
+    assert after != before
+    versions = [m["version"] for m in client.get(f"{API}/models").json()]
+    totals = {}
+    for v in versions:
+        h = client.get(f"{API}/predictions", params={"model_version": v, "limit": 500}).json()
+        assert all(p["model_version"] == v for p in h["items"])
+        assert h["total"] == len(h["items"])
+        totals[v] = h["total"]
+    assert sum(totals.values()) == client.get(f"{API}/predictions").json()["total"]
+    assert sum(1 for t in totals.values() if t > 0) >= 2

@@ -32,23 +32,101 @@ const labelPill = (cls, label) => `<span class="pill ${cls ? "late" : "ontime"}"
 async function checkHealth() {
   try {
     const h = await api("/health");
-    $("#statusDot").classList.add("on");
-    $("#statusText").textContent = `conectado · modelo ${h.active_model}`;
+    ["#statusDot", "#statusDot2"].forEach((d) => $(d).classList.add("on"));
+    $("#statusText").textContent = `Conectado · ${h.active_model}`;
   } catch {
-    $("#statusDot").classList.remove("on");
-    $("#statusText").textContent = "sin conexión";
+    ["#statusDot", "#statusDot2"].forEach((d) => $(d).classList.remove("on"));
+    $("#statusText").textContent = "Sin conexión";
   }
 }
 
 // ---------------------------------------------------------------- pestañas
 const loaders = { history: loadHistory, metrics: loadMetrics, data: loadDatasets };
-document.querySelectorAll(".tab").forEach((btn) =>
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b === btn));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${btn.dataset.tab}`));
-    loaders[btn.dataset.tab]?.();
-  })
-);
+const titles = {
+  predict: ["Predecir retrasos", "Shipping Delay AI · Predicción de retrasos en envíos de e-commerce"],
+  history: ["Historial", "Predicciones anteriores: datos enviados y resultado"],
+  metrics: ["Métricas del modelo", "Rendimiento del modelo activo y de sus versiones"],
+  data: ["Datos y reentrenamiento", "Sube datos actualizados y reentrena el modelo"],
+};
+function goTo(tab) {
+  document.querySelectorAll(".tab").forEach((b) => {
+    const on = b.dataset.tab === tab;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", String(on));
+    b.tabIndex = on ? 0 : -1;                 // tabindex itinerante: solo la pestaña activa entra en el orden de foco
+  });
+  document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${tab}`));
+  [$("#pageTitle").textContent, $("#pageSubtitle").textContent] = titles[tab];
+  $(".kpi-row").hidden = tab !== "predict";   // el resumen se muestra en el panel principal; Métricas tiene el detalle
+  loaders[tab]?.();
+}
+document.querySelectorAll(".tab").forEach((btn) => btn.addEventListener("click", () => goTo(btn.dataset.tab)));
+// Navegación por teclado del patrón de pestañas (flechas, Inicio, Fin)
+$(".side-nav").addEventListener("keydown", (e) => {
+  const tabs = [...document.querySelectorAll(".tab")];
+  const i = tabs.indexOf(document.activeElement);
+  if (i < 0) return;
+  const next = { ArrowDown: i + 1, ArrowRight: i + 1, ArrowUp: i - 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+  if (next === undefined) return;
+  e.preventDefault();
+  const t = tabs[(next + tabs.length) % tabs.length];
+  goTo(t.dataset.tab);
+  t.focus();
+});
+document.querySelectorAll("[data-goto]").forEach((btn) => btn.addEventListener("click", () => goTo(btn.dataset.goto)));
+
+// ---------------------------------------------------------------- resumen  (GET /metrics, GET /predictions)
+let overviewSeq = 0;
+async function loadOverview() {
+  const seq = ++overviewSeq;
+  const [m, all, late] = await Promise.allSettled([
+    api("/metrics"), api("/predictions?limit=4"), api("/predictions?limit=1&predicted_class=1"),
+  ]);
+  if (seq !== overviewSeq) return;
+  const failed = [];
+  if (m.status === "rejected") {
+    // No mostrar métricas de otra API o de una carga anterior
+    ["#kAuc", "#kAcc", "#kModel", "#mAlgo", "#mPrec", "#mRec", "#mF1"].forEach((id) => ($(id).textContent = "—"));
+    ["#kAucSub", "#kAccSub", "#kModelSub"].forEach((id) => ($(id).textContent = "No disponible"));
+    $("#mVersion").textContent = "Métricas no disponibles";
+    failed.push("métricas");
+  }
+  if (all.status === "rejected") {
+    $("#kTotal").textContent = "—";
+    $("#kTotalSub").textContent = "No disponible";
+    $("#recentList").innerHTML = `<li class="muted">No se pudieron cargar las predicciones.</li>`;
+    failed.push("predicciones");
+  } else if (late.status === "rejected") {
+    $("#kTotalSub").textContent = "Desglose no disponible";
+  }
+  if (failed.length) toast(`No se pudieron cargar: ${failed.join(" y ")}`, true);
+  if (m.status === "fulfilled") {
+    const v = m.value, th = v.quality_thresholds;
+    $("#kAuc").textContent = v.roc_auc.toFixed(3);
+    $("#kAucSub").textContent = `Umbral ≥ ${th.roc_auc} ${v.roc_auc >= th.roc_auc ? "✓" : "✗"}`;
+    $("#kAcc").textContent = pct(v.accuracy);
+    $("#kAccSub").textContent = `Umbral ≥ ${pct(th.accuracy)} ${v.accuracy >= th.accuracy ? "✓" : "✗"}`;
+    $("#kModel").textContent = v.algorithm;
+    $("#kModelSub").textContent = v.version;
+    $("#mAlgo").textContent = v.algorithm;
+    $("#mVersion").textContent = `${v.version} · ${v.train_rows}/${v.test_rows} filas`;
+    $("#mPrec").textContent = v.precision.toFixed(2);
+    $("#mRec").textContent = v.recall.toFixed(2);
+    $("#mF1").textContent = v.f1_score.toFixed(2);
+  }
+  if (all.status === "fulfilled") {
+    const h = all.value;
+    $("#kTotal").textContent = h.total.toLocaleString("es-BO");
+    if (late.status === "fulfilled") {
+      $("#kTotalSub").textContent = h.total ? `${late.value.total} con retraso · ${h.total - late.value.total} a tiempo` : "Sin predicciones aún";
+    }
+    $("#recentList").innerHTML = h.items.length ? h.items.map((p) => `<li class="${p.predicted_class ? "late" : ""}">
+        <div><div class="r-title">Envío #${p.id} · ${esc(p.mode_of_shipment)}, almacén ${esc(p.warehouse_block)}</div>
+        <div class="r-sub">${fmtDate(p.created_at)}</div></div>
+        <span class="pill ${p.predicted_class ? "late" : "ontime"}">${pct(p.probability_delay)}</span></li>`).join("")
+      : `<li class="muted">Aún no hay predicciones.</li>`;
+  }
+}
 
 // ---------------------------------------------------------------- predicción  (POST /predictions)
 $("#predictForm").addEventListener("submit", async (e) => {
@@ -65,9 +143,12 @@ $("#predictForm").addEventListener("submit", async (e) => {
     const lbl = $("#resultLabel");
     lbl.textContent = r.predicted_label;
     lbl.className = `big-label ${r.predicted_class ? "late" : "ontime"}`;
-    $("#gaugeFill").style.width = pct(r.probability_delay);
+    const arc = $("#gaugeArc"), len = arc.getTotalLength();
+    arc.style.strokeDasharray = `${len * r.probability_delay} ${len}`;
+    arc.classList.toggle("late", !!r.predicted_class);
     $("#probText").textContent = pct(r.probability_delay);
     $("#rId").textContent = r.id; $("#rVersion").textContent = r.model_version; $("#rDate").textContent = fmtDate(r.created_at);
+    loadOverview();
   } catch (err) { toast(`Error: ${err.message}`, true); }
 });
 
@@ -88,17 +169,26 @@ $("#randomBtn").addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------- historial  (GET /predictions)
+// Contadores de solicitud: solo la respuesta más reciente actualiza la pantalla.
+let histSeq = 0, versionSeq = 0, detailSeq = 0;
+
 async function loadHistory() {
+  const seq = ++histSeq;
+  loadVersionOptions();                       // independiente: un fallo de /models no bloquea el historial
   const filter = $("#histFilter").value;
-  const q = `?limit=${PAGE}&offset=${histOffset}${filter !== "" ? `&predicted_class=${filter}` : ""}`;
+  const version = $("#histVersion").value;
+  const q = `?limit=${PAGE}&offset=${histOffset}${filter !== "" ? `&predicted_class=${filter}` : ""}` +
+    (version ? `&model_version=${encodeURIComponent(version)}` : "");
   try {
     const h = await api(`/predictions${q}`);
+    if (seq !== histSeq) return;              // llegó una consulta más nueva
     const tb = $("#histTable tbody");
-    tb.innerHTML = h.items.length ? h.items.map((p) => `<tr>
-      <td>${p.id}</td><td>${fmtDate(p.created_at)}</td><td>${p.warehouse_block}</td><td>${p.mode_of_shipment}</td>
+    tb.innerHTML = h.items.length ? h.items.map((p) => `<tr data-id="${p.id}">
+      <td><button type="button" class="link-btn" data-id="${p.id}" aria-label="Ver detalle de la predicción ${p.id}">${p.id}</button></td>
+      <td>${fmtDate(p.created_at)}</td><td>${esc(p.warehouse_block)}</td><td>${esc(p.mode_of_shipment)}</td>
       <td class="num">${p.customer_care_calls}</td><td class="num">${p.customer_rating}</td>
       <td class="num">${p.cost_of_the_product}</td><td class="num">${p.prior_purchases}</td>
-      <td>${p.product_importance}</td><td>${p.gender}</td><td class="num">${p.discount_offered}</td>
+      <td>${esc(p.product_importance)}</td><td>${esc(p.gender)}</td><td class="num">${p.discount_offered}</td>
       <td class="num">${p.weight_in_gms}</td><td>${labelPill(p.predicted_class, p.predicted_label)}</td>
       <td class="num">${pct(p.probability_delay)}</td><td><code>${esc(p.model_version)}</code></td></tr>`).join("")
       : `<tr><td colspan="15" class="empty">Aún no hay predicciones.</td></tr>`;
@@ -106,8 +196,62 @@ async function loadHistory() {
     $("#pageInfo").textContent = `Página ${page} de ${pages} · ${h.total} registros`;
     $("#prevPage").disabled = histOffset === 0;
     $("#nextPage").disabled = histOffset + PAGE >= h.total;
-  } catch (err) { toast(`Error: ${err.message}`, true); }
+  } catch (err) { if (seq === histSeq) toast(`Error: ${err.message}`, true); }
 }
+
+// Opciones del filtro de versión  (GET /models)
+async function loadVersionOptions() {
+  const seq = ++versionSeq;
+  try {
+    const all = await api("/models");
+    if (seq !== versionSeq) return;
+    const sel = $("#histVersion"), current = sel.value;   // se lee al llegar la respuesta: conserva la última elección
+    sel.innerHTML = `<option value="">Todas las versiones</option>` +
+      all.map((m) => `<option value="${esc(m.version)}">${esc(m.version)} · ${esc(m.status)}</option>`).join("");
+    sel.value = all.some((m) => m.version === current) ? current : "";
+  } catch (err) {
+    if (seq === versionSeq) toast(`No se pudieron cargar las versiones: ${err.message}`, true);
+  }
+}
+
+// Detalle de una predicción  (GET /predictions/{id})
+async function showDetail(id) {
+  const seq = ++detailSeq;
+  try {
+    const p = await api(`/predictions/${id}`);
+    if (seq !== detailSeq) return;            // se pidió otra fila o se cerró la tarjeta
+    document.querySelectorAll("#histTable tbody tr").forEach((tr) => tr.classList.toggle("selected", tr.dataset.id === String(id)));
+    $("#detailTitle").textContent = `Detalle de la predicción #${p.id}`;
+    const rows = [
+      ["Resultado", labelPill(p.predicted_class, p.predicted_label)],
+      ["Probabilidad de retraso", pct(p.probability_delay)],
+      ["Versión del modelo", `<code>${esc(p.model_version)}</code>`],
+      ["Fecha", fmtDate(p.created_at)],
+      ["Bloque de almacén", esc(p.warehouse_block)], ["Modo de envío", esc(p.mode_of_shipment)],
+      ["Llamadas a atención", p.customer_care_calls], ["Calificación del cliente", p.customer_rating],
+      ["Costo del producto (USD)", p.cost_of_the_product], ["Compras previas", p.prior_purchases],
+      ["Importancia del producto", esc(p.product_importance)], ["Género", esc(p.gender)],
+      ["Descuento ofrecido (%)", p.discount_offered], ["Peso (g)", p.weight_in_gms],
+    ];
+    $("#detailBody").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    $("#detailCard").hidden = false;
+    $("#detailCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (err) { if (seq === detailSeq) toast(`Error: ${err.message}`, true); }
+}
+// Clic en cualquier parte de la fila (puntero) o Enter/Espacio en el botón del número (teclado)
+$("#histTable tbody").addEventListener("click", (e) => {
+  const el = e.target.closest("[data-id]");
+  if (el) showDetail(el.dataset.id);
+});
+$("#detailClose").addEventListener("click", () => {
+  detailSeq++;                                // invalida una consulta de detalle pendiente
+  const selected = document.querySelector("#histTable tbody tr.selected .link-btn");
+  $("#detailCard").hidden = true;
+  document.querySelectorAll("#histTable tbody tr.selected").forEach((tr) => tr.classList.remove("selected"));
+  (selected || $("#histRefresh")).focus();    // devuelve el foco al historial
+});
+$("#histVersion").addEventListener("change", () => { histOffset = 0; loadHistory(); });
+
 $("#histRefresh").addEventListener("click", loadHistory);
 $("#histFilter").addEventListener("change", () => { histOffset = 0; loadHistory(); });
 $("#prevPage").addEventListener("click", () => { histOffset = Math.max(0, histOffset - PAGE); loadHistory(); });
@@ -132,7 +276,7 @@ async function loadMetrics() {
     const cm = m.confusion_matrix, tot = cm.tn + cm.fp + cm.fn + cm.tp;
     const cell = (v, good, name) => {
       const a = 0.15 + 0.75 * (v / tot) * 2;
-      const bg = good ? `rgba(46,125,107,${a})` : `rgba(217,130,43,${a})`;
+      const bg = good ? `rgba(93,125,104,${a})` : `rgba(192,98,63,${a * 0.8})`;
       return `<div class="cell" style="background:${bg}">${v}<small>${name}</small></div>`;
     };
     $("#cmatrix").innerHTML = `<div class="cm">
@@ -202,15 +346,20 @@ $("#retrainBtn").addEventListener("click", async () => {
     const m = r.new_model;
     showMsg($("#retrainMsg"), `<b>${r.status}</b> · ${esc(r.message)}<br>ROC-AUC ${m.roc_auc.toFixed(3)} · Accuracy ${m.accuracy.toFixed(3)} · F1 ${m.f1_score.toFixed(3)}` +
       (r.previous_model_version ? `<br>Modelo anterior: <code>${esc(r.previous_model_version)}</code>` : ""), r.status === "COMPLETADO" ? "ok" : "warn");
-    checkHealth();
+    checkHealth(); loadOverview();
   } catch (err) { showMsg($("#retrainMsg"), `✗ ${esc(err.message)}`, "err"); }
   finally { btn.disabled = false; btn.textContent = "Reentrenar"; }
 });
 
 // ---------------------------------------------------------------- inicio
+const docsUrl = () => API.replace(/\/api\/v1\/?$/, "") + "/docs";
 $("#apiUrl").value = API;
+$("#docsLink").href = docsUrl();
+$("#pingBtn").addEventListener("click", () => { checkHealth(); loadOverview(); });
 $("#apiUrl").addEventListener("change", (e) => {
-  API = e.target.value.replace(/\/$/, ""); localStorage.setItem("apiUrl", API); checkHealth();
+  API = e.target.value.replace(/\/$/, ""); localStorage.setItem("apiUrl", API);
+  $("#docsLink").href = docsUrl(); checkHealth(); loadOverview();
 });
 checkHealth();
+loadOverview();
 setInterval(checkHealth, 15000);
