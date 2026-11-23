@@ -34,7 +34,8 @@ backend/
   data/           Train.csv (dataset) · ejemplo_dataset_actualizado.csv (para probar reentrenamiento)
   tests/          pruebas de integración de la API
 frontend/         cliente web (index.html, app.js, styles.css)
-docs/             openapi.yaml/json · swagger.html · diagrama_bd.png/.mmd · cronograma_gantt.png
+docs/             evidencia_revision_ia/ (capturas del PR revisado por CodeRabbit)
+                  openapi.yaml/json · swagger.html · diagrama_bd.png/.mmd · cronograma_gantt.png
                   crisp_ml/ (figuras y reportes del entrenamiento) · capturas/
 ```
 
@@ -57,7 +58,7 @@ Para usar PostgreSQL: `export DATABASE_URL=postgresql+psycopg2://usuario:clave@l
 | Método | Ruta | Requisito |
 |---|---|---|
 | POST | `/predictions` | a) Enviar datos y obtener la predicción |
-| GET | `/predictions` · `/predictions/{id}` | b) Historial de predicciones (datos + resultado) |
+| GET | `/predictions` · `/predictions/{id}` | b) Historial de predicciones (datos + resultado); filtros `predicted_class` y `model_version` |
 | GET | `/metrics` · `/models` | c) Métricas del modelo activo y de todas las versiones |
 | POST | `/retrain` | d) Reentrenar con información actualizada |
 | POST | `/datasets` · GET `/datasets` | e) Enviar el archivo de entrenamiento |

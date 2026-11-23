@@ -98,8 +98,11 @@
         <div class="card-head">
           <h2>Historial de predicciones</h2>
           <div class="inline">
-            <select id="histFilter">
-              <option value="">Todas</option><option value="0">A tiempo</option><option value="1">Con retraso</option>
+            <select id="histFilter" aria-label="Filtrar por resultado">
+              <option value="">Todos los resultados</option><option value="0">A tiempo</option><option value="1">Con retraso</option>
+            </select>
+            <select id="histVersion" aria-label="Filtrar por versión del modelo">
+              <option value="">Todas las versiones</option>
             </select>
             <button class="ghost" id="histRefresh">Actualizar</button>
           </div>
@@ -114,11 +117,19 @@
             <tbody></tbody>
           </table>
         </div>
+        <p class="muted">Haz clic en una fila para ver el detalle de la predicción.</p>
         <div class="pager">
           <button class="ghost" id="prevPage">← Anterior</button>
           <span id="pageInfo"></span>
           <button class="ghost" id="nextPage">Siguiente →</button>
         </div>
+      </div>
+      <div class="card" id="detailCard" hidden>
+        <div class="card-head">
+          <h2 id="detailTitle">Detalle de la predicción</h2>
+          <button class="ghost" id="detailClose">Cerrar</button>
+        </div>
+        <dl class="kv" id="detailBody"></dl>
       </div>
     </section>
 
