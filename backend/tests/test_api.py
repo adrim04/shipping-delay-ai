@@ -40,6 +40,14 @@ def test_predict_and_history(client):
     assert client.get(f"{API}/predictions/{body['id']}").status_code == 200
 
 
+def test_history_filter_by_model_version(client):
+    version = client.post(f"{API}/predictions", json=SAMPLE).json()["model_version"]
+    h = client.get(f"{API}/predictions", params={"model_version": version}).json()
+    assert h["total"] >= 1 and all(p["model_version"] == version for p in h["items"])
+    assert client.get(f"{API}/predictions", params={"model_version": "v-no-existe"}).status_code == 404
+    assert client.get(f"{API}/predictions", params={"model_version": ""}).status_code == 404
+
+
 def test_predict_validation(client):
     bad = {**SAMPLE, "mode_of_shipment": "Train"}
     assert client.post(f"{API}/predictions", json=bad).status_code == 422

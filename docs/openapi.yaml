@@ -83,6 +83,16 @@ paths:
           description: Filtrar por clase
           title: Predicted Class
         description: Filtrar por clase
+      - name: model_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filtrar por versión del modelo
+          title: Model Version
+        description: Filtrar por versión del modelo
       responses:
         '200':
           description: Successful Response
@@ -90,6 +100,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PredictionHistory'
+        '404':
+          description: Versión de modelo no encontrada
         '422':
           description: Validation Error
           content:
