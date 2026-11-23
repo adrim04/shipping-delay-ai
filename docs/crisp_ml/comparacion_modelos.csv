@@ -1,0 +1,4 @@
+algorithm,cv_roc_auc,params,accuracy,precision,recall,f1,roc_auc
+LogisticRegression,0.7209,{'C': 0.1},0.6382,0.7063,0.674,0.6898,0.7183
+RandomForest,0.7404,"{'max_depth': 6, 'min_samples_leaf': 10, 'n_estimators': 200}",0.6773,0.9277,0.4981,0.6482,0.7471
+GradientBoosting,0.7456,"{'learning_rate': 0.05, 'max_depth': 2, 'n_estimators': 100}",0.6782,0.9522,0.4851,0.6428,0.7591

@@ -1,0 +1,1003 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Shipping Delay AI – API",
+    "description": "API REST que expone un modelo de **clasificación supervisada** entrenado con el dataset *E-Commerce Shipping Data* (Kaggle, prachi13/customer-analytics). Predice si un envío llegará **a tiempo (0)** o **con retraso (1)**.\n\nEl ciclo de vida del modelo sigue **CRISP-ML(Q)**: cada reentrenamiento pasa por una compuerta de calidad antes de activarse.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Sistema"
+        ],
+        "summary": "Estado del servicio",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/predictions": {
+      "post": {
+        "tags": [
+          "Predicción"
+        ],
+        "summary": "Predecir si un envío llegará con retraso",
+        "operationId": "create_prediction_api_v1_predictions_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShipmentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Historial"
+        ],
+        "summary": "Historial de predicciones (datos enviados y resultado)",
+        "operationId": "list_predictions_api_v1_predictions_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "predicted_class",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 1,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por clase",
+              "title": "Predicted Class"
+            },
+            "description": "Filtrar por clase"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionHistory"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/predictions/{prediction_id}": {
+      "get": {
+        "tags": [
+          "Historial"
+        ],
+        "summary": "Detalle de una predicción",
+        "operationId": "get_prediction_api_v1_predictions__prediction_id__get",
+        "parameters": [
+          {
+            "name": "prediction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Prediction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "tags": [
+          "Métricas"
+        ],
+        "summary": "Métricas de rendimiento del modelo activo",
+        "operationId": "get_metrics_api_v1_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelMetrics"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models": {
+      "get": {
+        "tags": [
+          "Métricas"
+        ],
+        "summary": "Todas las versiones del modelo (activas, inactivas y rechazadas)",
+        "operationId": "list_models_api_v1_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelMetrics"
+                  },
+                  "type": "array",
+                  "title": "Response List Models Api V1 Models Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets": {
+      "get": {
+        "tags": [
+          "Datasets"
+        ],
+        "summary": "Listar datasets disponibles",
+        "operationId": "list_datasets_api_v1_datasets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatasetInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Datasets Api V1 Datasets Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Datasets"
+        ],
+        "summary": "Subir un archivo CSV de entrenamiento",
+        "operationId": "upload_dataset_api_v1_datasets_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_dataset_api_v1_datasets_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/retrain": {
+      "post": {
+        "tags": [
+          "Reentrenamiento"
+        ],
+        "summary": "Reentrenar el modelo con un dataset (por defecto, el último subido)",
+        "operationId": "retrain_api_v1_retrain_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RetrainRequestIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrainResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_dataset_api_v1_datasets_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "CSV con las 12 columnas del dataset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_dataset_api_v1_datasets_post"
+      },
+      "DatasetInfo": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "row_count": {
+            "type": "integer",
+            "title": "Row Count"
+          },
+          "class_balance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Class Balance"
+          },
+          "validation_notes": {
+            "items": {},
+            "type": "array",
+            "title": "Validation Notes"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "row_count",
+          "class_balance",
+          "validation_notes",
+          "uploaded_at"
+        ],
+        "title": "DatasetInfo"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "active_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "active_model"
+        ],
+        "title": "HealthResponse"
+      },
+      "ModelMetrics": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "algorithm": {
+            "type": "string",
+            "title": "Algorithm"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "hyperparameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Hyperparameters"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "train_rows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train Rows"
+          },
+          "test_rows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Rows"
+          },
+          "accuracy": {
+            "type": "number",
+            "title": "Accuracy"
+          },
+          "precision": {
+            "type": "number",
+            "title": "Precision"
+          },
+          "recall": {
+            "type": "number",
+            "title": "Recall"
+          },
+          "f1_score": {
+            "type": "number",
+            "title": "F1 Score"
+          },
+          "roc_auc": {
+            "type": "number",
+            "title": "Roc Auc"
+          },
+          "cv_roc_auc": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cv Roc Auc"
+          },
+          "confusion_matrix": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Confusion Matrix"
+          },
+          "feature_importance": {
+            "items": {},
+            "type": "array",
+            "title": "Feature Importance"
+          },
+          "comparison": {
+            "items": {},
+            "type": "array",
+            "title": "Comparison"
+          },
+          "quality_thresholds": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Quality Thresholds"
+          },
+          "quality_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Notes"
+          },
+          "trained_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Trained At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "algorithm",
+          "status",
+          "hyperparameters",
+          "dataset_id",
+          "train_rows",
+          "test_rows",
+          "accuracy",
+          "precision",
+          "recall",
+          "f1_score",
+          "roc_auc",
+          "cv_roc_auc",
+          "confusion_matrix",
+          "feature_importance",
+          "comparison",
+          "quality_thresholds",
+          "quality_notes",
+          "trained_at"
+        ],
+        "title": "ModelMetrics"
+      },
+      "PredictionHistory": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PredictionRecord"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "items"
+        ],
+        "title": "PredictionHistory"
+      },
+      "PredictionRecord": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "warehouse_block": {
+            "type": "string",
+            "title": "Warehouse Block"
+          },
+          "mode_of_shipment": {
+            "type": "string",
+            "title": "Mode Of Shipment"
+          },
+          "customer_care_calls": {
+            "type": "integer",
+            "title": "Customer Care Calls"
+          },
+          "customer_rating": {
+            "type": "integer",
+            "title": "Customer Rating"
+          },
+          "cost_of_the_product": {
+            "type": "number",
+            "title": "Cost Of The Product"
+          },
+          "prior_purchases": {
+            "type": "integer",
+            "title": "Prior Purchases"
+          },
+          "product_importance": {
+            "type": "string",
+            "title": "Product Importance"
+          },
+          "gender": {
+            "type": "string",
+            "title": "Gender"
+          },
+          "discount_offered": {
+            "type": "number",
+            "title": "Discount Offered"
+          },
+          "weight_in_gms": {
+            "type": "number",
+            "title": "Weight In Gms"
+          },
+          "predicted_class": {
+            "type": "integer",
+            "title": "Predicted Class"
+          },
+          "predicted_label": {
+            "type": "string",
+            "title": "Predicted Label"
+          },
+          "probability_delay": {
+            "type": "number",
+            "title": "Probability Delay"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "warehouse_block",
+          "mode_of_shipment",
+          "customer_care_calls",
+          "customer_rating",
+          "cost_of_the_product",
+          "prior_purchases",
+          "product_importance",
+          "gender",
+          "discount_offered",
+          "weight_in_gms",
+          "predicted_class",
+          "predicted_label",
+          "probability_delay",
+          "model_version",
+          "created_at"
+        ],
+        "title": "PredictionRecord"
+      },
+      "PredictionResult": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "predicted_class": {
+            "type": "integer",
+            "title": "Predicted Class",
+            "description": "0 = a tiempo, 1 = con retraso"
+          },
+          "predicted_label": {
+            "type": "string",
+            "title": "Predicted Label"
+          },
+          "probability_delay": {
+            "type": "number",
+            "title": "Probability Delay",
+            "description": "Probabilidad de retraso (0-1)"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "predicted_class",
+          "predicted_label",
+          "probability_delay",
+          "model_version",
+          "created_at"
+        ],
+        "title": "PredictionResult"
+      },
+      "RetrainRequestIn": {
+        "properties": {
+          "dataset_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id",
+            "description": "Dataset a usar. Si se omite, se usa el último subido."
+          },
+          "algorithm": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "LogisticRegression",
+              "RandomForest",
+              "GradientBoosting"
+            ],
+            "title": "Algorithm",
+            "default": "auto"
+          }
+        },
+        "type": "object",
+        "title": "RetrainRequestIn"
+      },
+      "RetrainResponse": {
+        "properties": {
+          "request_id": {
+            "type": "integer",
+            "title": "Request Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "COMPLETADO (modelo activado) o RECHAZADO (no superó el umbral de calidad)"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "new_model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previous_model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Model Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "status",
+          "message",
+          "new_model",
+          "previous_model_version"
+        ],
+        "title": "RetrainResponse"
+      },
+      "ShipmentInput": {
+        "properties": {
+          "warehouse_block": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "F"
+            ],
+            "title": "Warehouse Block",
+            "description": "Bloque del almacén"
+          },
+          "mode_of_shipment": {
+            "type": "string",
+            "enum": [
+              "Flight",
+              "Ship",
+              "Road"
+            ],
+            "title": "Mode Of Shipment",
+            "description": "Modo de envío"
+          },
+          "customer_care_calls": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Customer Care Calls",
+            "description": "Llamadas a atención al cliente"
+          },
+          "customer_rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Customer Rating",
+            "description": "Calificación del cliente (1-5)"
+          },
+          "cost_of_the_product": {
+            "type": "number",
+            "maximum": 2000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cost Of The Product",
+            "description": "Costo del producto (USD)"
+          },
+          "prior_purchases": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Prior Purchases",
+            "description": "Compras previas del cliente"
+          },
+          "product_importance": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Product Importance",
+            "description": "Importancia del producto"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "F",
+              "M"
+            ],
+            "title": "Gender",
+            "description": "Género del cliente"
+          },
+          "discount_offered": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Discount Offered",
+            "description": "Descuento ofrecido (%)"
+          },
+          "weight_in_gms": {
+            "type": "number",
+            "maximum": 20000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Weight In Gms",
+            "description": "Peso en gramos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "warehouse_block",
+          "mode_of_shipment",
+          "customer_care_calls",
+          "customer_rating",
+          "cost_of_the_product",
+          "prior_purchases",
+          "product_importance",
+          "gender",
+          "discount_offered",
+          "weight_in_gms"
+        ],
+        "title": "ShipmentInput",
+        "description": "Datos de un envío para predecir si llegará con retraso.",
+        "example": {
+          "cost_of_the_product": 210,
+          "customer_care_calls": 4,
+          "customer_rating": 3,
+          "discount_offered": 45,
+          "gender": "F",
+          "mode_of_shipment": "Ship",
+          "prior_purchases": 3,
+          "product_importance": "medium",
+          "warehouse_block": "F",
+          "weight_in_gms": 1500
+        }
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Predicción",
+      "description": "Enviar datos de un envío y obtener la predicción."
+    },
+    {
+      "name": "Historial",
+      "description": "Consultar predicciones realizadas anteriormente."
+    },
+    {
+      "name": "Métricas",
+      "description": "Rendimiento del modelo activo y versiones anteriores."
+    },
+    {
+      "name": "Datasets",
+      "description": "Subir y listar archivos de entrenamiento."
+    },
+    {
+      "name": "Reentrenamiento",
+      "description": "Reentrenar el modelo con datos actualizados."
+    },
+    {
+      "name": "Sistema",
+      "description": "Estado del servicio."
+    }
+  ]
+}

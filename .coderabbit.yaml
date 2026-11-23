@@ -1,0 +1,20 @@
+# Configuración de CodeRabbit (revisión de Pull Requests con IA)
+# https://docs.coderabbit.ai/getting-started/configure-coderabbit
+language: "es-ES"
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "backend/app/**/*.py"
+      instructions: "Revisar validación de entradas, manejo de errores HTTP, uso correcto de la sesión de SQLAlchemy y posibles fugas de datos entre entrenamiento y prueba."
+    - path: "backend/app/ml/**"
+      instructions: "Verificar buenas prácticas de ML: reproducibilidad (random_state), estratificación, ausencia de data leakage y métricas adecuadas para clasificación desbalanceada."
+    - path: "frontend/**"
+      instructions: "Revisar manejo de errores de fetch, escape de HTML (XSS) y accesibilidad básica."
+chat:
+  auto_reply: true

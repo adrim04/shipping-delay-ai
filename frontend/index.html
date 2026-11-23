@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shipping Delay AI</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <div>
+        <h1>Shipping Delay AI</h1>
+        <p>Predicción de retrasos en envíos · E-Commerce Shipping Data</p>
+      </div>
+    </div>
+    <div class="status">
+      <label for="apiUrl">API</label>
+      <input id="apiUrl" type="text" spellcheck="false" />
+      <span id="statusDot" class="dot"></span>
+      <span id="statusText">sin conexión</span>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="predict">Predecir</button>
+    <button class="tab" data-tab="history">Historial</button>
+    <button class="tab" data-tab="metrics">Métricas del modelo</button>
+    <button class="tab" data-tab="data">Datos y reentrenamiento</button>
+  </nav>
+
+  <main>
+    <!-- ============ PREDECIR ============ -->
+    <section id="tab-predict" class="panel active">
+      <div class="grid-2">
+        <form id="predictForm" class="card">
+          <h2>Datos del envío</h2>
+          <div class="fields">
+            <label>Bloque de almacén
+              <select name="warehouse_block"><option>A</option><option>B</option><option>C</option><option>D</option><option selected>F</option></select>
+            </label>
+            <label>Modo de envío
+              <select name="mode_of_shipment"><option value="Ship" selected>Barco (Ship)</option><option value="Flight">Avión (Flight)</option><option value="Road">Carretera (Road)</option></select>
+            </label>
+            <label>Importancia del producto
+              <select name="product_importance"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select>
+            </label>
+            <label>Género del cliente
+              <select name="gender"><option value="F">F</option><option value="M">M</option></select>
+            </label>
+            <label>Llamadas a atención al cliente
+              <input name="customer_care_calls" type="number" min="0" max="20" value="4" required />
+            </label>
+            <label>Calificación del cliente (1-5)
+              <input name="customer_rating" type="number" min="1" max="5" value="3" required />
+            </label>
+            <label>Costo del producto (USD)
+              <input name="cost_of_the_product" type="number" min="1" max="2000" value="210" required />
+            </label>
+            <label>Compras previas
+              <input name="prior_purchases" type="number" min="0" max="50" value="3" required />
+            </label>
+            <label>Descuento ofrecido (%)
+              <input name="discount_offered" type="number" min="0" max="100" value="10" required />
+            </label>
+            <label>Peso (gramos)
+              <input name="weight_in_gms" type="number" min="1" max="20000" value="4000" required />
+            </label>
+          </div>
+          <div class="actions">
+            <button type="button" class="ghost" id="randomBtn">Ejemplo aleatorio</button>
+            <button type="submit" class="primary">Predecir</button>
+          </div>
+        </form>
+
+        <div class="card result" id="resultCard">
+          <h2>Resultado</h2>
+          <div id="resultEmpty" class="empty">Completa el formulario y presiona <b>Predecir</b>.</div>
+          <div id="resultBody" hidden>
+            <div id="resultLabel" class="big-label"></div>
+            <div class="gauge"><div id="gaugeFill"></div></div>
+            <div class="gauge-legend"><span>0%</span><span id="probText"></span><span>100%</span></div>
+            <p class="muted">Probabilidad estimada de que el envío llegue <b>con retraso</b>.</p>
+            <dl class="kv">
+              <dt>ID predicción</dt><dd id="rId"></dd>
+              <dt>Versión del modelo</dt><dd id="rVersion"></dd>
+              <dt>Fecha</dt><dd id="rDate"></dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HISTORIAL ============ -->
+    <section id="tab-history" class="panel">
+      <div class="card">
+        <div class="card-head">
+          <h2>Historial de predicciones</h2>
+          <div class="inline">
+            <select id="histFilter">
+              <option value="">Todas</option><option value="0">A tiempo</option><option value="1">Con retraso</option>
+            </select>
+            <button class="ghost" id="histRefresh">Actualizar</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="histTable">
+            <thead><tr>
+              <th>#</th><th>Fecha</th><th>Almacén</th><th>Envío</th><th>Llamadas</th><th>Rating</th>
+              <th>Costo</th><th>Compras</th><th>Importancia</th><th>Género</th><th>Desc.%</th><th>Peso g</th>
+              <th>Resultado</th><th>P(retraso)</th><th>Modelo</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button class="ghost" id="prevPage">← Anterior</button>
+          <span id="pageInfo"></span>
+          <button class="ghost" id="nextPage">Siguiente →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MÉTRICAS ============ -->
+    <section id="tab-metrics" class="panel">
+      <div id="kpis" class="kpis"></div>
+      <div class="grid-2">
+        <div class="card"><h2>Matriz de confusión (conjunto de prueba)</h2><div id="cmatrix"></div></div>
+        <div class="card"><h2>Importancia de variables</h2><div id="fimp"></div></div>
+      </div>
+      <div class="card"><h2>Comparación de modelos candidatos</h2><div class="table-wrap"><table id="compTable"></table></div></div>
+      <div class="card"><h2>Versiones del modelo</h2><div class="table-wrap"><table id="modelsTable"></table></div></div>
+    </section>
+
+    <!-- ============ DATOS / REENTRENAMIENTO ============ -->
+    <section id="tab-data" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h2>1 · Subir archivo de entrenamiento</h2>
+          <p class="muted">CSV con las columnas del dataset original: Warehouse_block, Mode_of_Shipment, Customer_care_calls, Customer_rating, Cost_of_the_Product, Prior_purchases, Product_importance, Gender, Discount_offered, Weight_in_gms, Reached.on.Time_Y.N (mínimo 500 filas).</p>
+          <form id="uploadForm" class="upload">
+            <input type="file" id="fileInput" accept=".csv" required />
+            <button type="submit" class="primary">Subir dataset</button>
+          </form>
+          <div id="uploadMsg" class="msg" hidden></div>
+        </div>
+        <div class="card">
+          <h2>2 · Reentrenar el modelo</h2>
+          <div class="fields one">
+            <label>Dataset
+              <select id="retrainDataset"></select>
+            </label>
+            <label>Algoritmo
+              <select id="retrainAlgo">
+                <option value="auto">Automático (elige el mejor por ROC-AUC)</option>
+                <option>GradientBoosting</option><option>RandomForest</option><option>LogisticRegression</option>
+              </select>
+            </label>
+          </div>
+          <button class="primary" id="retrainBtn">Reentrenar</button>
+          <div id="retrainMsg" class="msg" hidden></div>
+        </div>
+      </div>
+      <div class="card"><h2>Datasets registrados</h2><div class="table-wrap"><table id="dsTable"></table></div></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

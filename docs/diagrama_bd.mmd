@@ -1,0 +1,65 @@
+erDiagram
+    datasets ||--o{ model_versions : "entrena"
+    datasets ||--o{ retrain_requests : "usa"
+    model_versions ||--o{ predictions : "genera"
+    model_versions |o--o{ retrain_requests : "resulta en"
+
+    datasets {
+        INTEGER id PK
+        VARCHAR filename
+        VARCHAR storage_path
+        INTEGER row_count
+        TEXT class_balance "JSON"
+        TEXT validation_notes "JSON"
+        TIMESTAMP uploaded_at
+    }
+    model_versions {
+        INTEGER id PK
+        VARCHAR version UK
+        VARCHAR algorithm
+        TEXT hyperparameters "JSON"
+        INTEGER dataset_id FK
+        INTEGER train_rows
+        INTEGER test_rows
+        REAL accuracy
+        REAL precision
+        REAL recall
+        REAL f1_score
+        REAL roc_auc
+        REAL cv_roc_auc
+        TEXT confusion_matrix "JSON"
+        TEXT feature_importance "JSON"
+        TEXT comparison "JSON"
+        VARCHAR artifact_path
+        VARCHAR status "ACTIVO|INACTIVO|RECHAZADO"
+        TEXT quality_notes
+        TIMESTAMP trained_at
+    }
+    predictions {
+        INTEGER id PK
+        INTEGER model_version_id FK
+        VARCHAR warehouse_block
+        VARCHAR mode_of_shipment
+        INTEGER customer_care_calls
+        INTEGER customer_rating
+        REAL cost_of_the_product
+        INTEGER prior_purchases
+        VARCHAR product_importance
+        VARCHAR gender
+        REAL discount_offered
+        REAL weight_in_gms
+        INTEGER predicted_class
+        VARCHAR predicted_label
+        REAL probability_delay
+        TIMESTAMP created_at
+    }
+    retrain_requests {
+        INTEGER id PK
+        INTEGER dataset_id FK
+        VARCHAR algorithm
+        VARCHAR status
+        INTEGER resulting_model_id FK
+        TEXT message
+        TIMESTAMP requested_at
+        TIMESTAMP finished_at
+    }

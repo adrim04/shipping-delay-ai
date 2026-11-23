@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+backend/*.db
+backend/data/uploads/
+backend/artifacts/*.joblib
+backend/artifacts/*.json
+!backend/artifacts/.gitkeep
+.env

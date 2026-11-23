@@ -1,0 +1,70 @@
+{
+  "algorithm": "GradientBoosting",
+  "params": {
+    "learning_rate": 0.05,
+    "max_depth": 2,
+    "n_estimators": 100
+  },
+  "metrics": {
+    "accuracy": 0.6782,
+    "precision": 0.9522,
+    "recall": 0.4851,
+    "f1": 0.6428,
+    "roc_auc": 0.7591,
+    "confusion_matrix": {
+      "tn": 855,
+      "fp": 32,
+      "fn": 676,
+      "tp": 637
+    },
+    "cv_roc_auc": 0.7456
+  },
+  "quality_gate": {
+    "passed": true,
+    "failures": []
+  },
+  "feature_importance": [
+    {
+      "feature": "Discount_offered",
+      "importance": 0.8677
+    },
+    {
+      "feature": "Weight_in_gms",
+      "importance": 0.0866
+    },
+    {
+      "feature": "Prior_purchases",
+      "importance": 0.0262
+    },
+    {
+      "feature": "Cost_of_the_Product",
+      "importance": 0.0152
+    },
+    {
+      "feature": "Product_importance_high",
+      "importance": 0.0018
+    },
+    {
+      "feature": "Customer_rating",
+      "importance": 0.0011
+    },
+    {
+      "feature": "Mode_of_Shipment_Flight",
+      "importance": 0.0007
+    },
+    {
+      "feature": "Customer_care_calls",
+      "importance": 0.0007
+    },
+    {
+      "feature": "Warehouse_block_A",
+      "importance": 0.0
+    },
+    {
+      "feature": "Warehouse_block_B",
+      "importance": 0.0
+    }
+  ],
+  "train_rows": 8799,
+  "test_rows": 2200
+}
