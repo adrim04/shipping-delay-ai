@@ -1,6 +1,6 @@
 /* Shipping Delay AI – estilo: tarjetas blancas sobre fondo cálido, acentos verde salvia */
 :root {
-  --bg: #e9e7e2; --card: #ffffff; --ink: #1d221f; --muted: #8b908c; --line: #eceae5;
+  --bg: #e9e7e2; --card: #ffffff; --ink: #1d221f; --muted: #626864; --line: #eceae5;
   --green: #5d7d68; --green-dark: #3e5a48; --green-soft: #e4ede6; --green-tint: #f1f6f2;
   --beige: #f2e9da; --beige-ink: #9a7b4f;
   --late: #c0623f; --late-soft: #f8e3dd; --ok: #4f7a5f; --bad: #b9473a;
@@ -240,3 +240,13 @@ input[type=file] { padding: 6px; }
 input[type=file]::file-selector-button { font: inherit; border: 0; border-radius: 8px; padding: 7px 14px; margin-right: 10px;
   background: var(--green-soft); color: var(--green-dark); font-weight: 600; cursor: pointer; }
 @media (max-width: 860px) { .sidebar { margin-top: 0; } }
+
+/* foco visible del panel y barra móvil en pantallas estrechas */
+.panel:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 4px; border-radius: 12px; }
+@media (max-width: 420px) {
+  .sidebar { padding: 6px 8px; gap: 4px; }
+  .side-nav, .side-bottom { gap: 4px; }
+  .tab, .side-link { width: 40px; height: 40px; }
+  .tab svg, .side-link svg { width: 20px; height: 20px; }
+  .side-status { width: 36px; height: 36px; }
+}

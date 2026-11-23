@@ -52,7 +52,8 @@ function goTo(tab) {
   document.querySelectorAll(".tab").forEach((b) => {
     const on = b.dataset.tab === tab;
     b.classList.toggle("active", on);
-    b.setAttribute("aria-selected", on);
+    b.setAttribute("aria-selected", String(on));
+    b.tabIndex = on ? 0 : -1;                 // tabindex itinerante: solo la pestaña activa entra en el orden de foco
   });
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${tab}`));
   [$("#pageTitle").textContent, $("#pageSubtitle").textContent] = titles[tab];
@@ -60,6 +61,18 @@ function goTo(tab) {
   loaders[tab]?.();
 }
 document.querySelectorAll(".tab").forEach((btn) => btn.addEventListener("click", () => goTo(btn.dataset.tab)));
+// Navegación por teclado del patrón de pestañas (flechas, Inicio, Fin)
+$(".side-nav").addEventListener("keydown", (e) => {
+  const tabs = [...document.querySelectorAll(".tab")];
+  const i = tabs.indexOf(document.activeElement);
+  if (i < 0) return;
+  const next = { ArrowDown: i + 1, ArrowRight: i + 1, ArrowUp: i - 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+  if (next === undefined) return;
+  e.preventDefault();
+  const t = tabs[(next + tabs.length) % tabs.length];
+  goTo(t.dataset.tab);
+  t.focus();
+});
 document.querySelectorAll("[data-goto]").forEach((btn) => btn.addEventListener("click", () => goTo(btn.dataset.goto)));
 
 // ---------------------------------------------------------------- resumen  (GET /metrics, GET /predictions)
@@ -70,6 +83,23 @@ async function loadOverview() {
     api("/metrics"), api("/predictions?limit=4"), api("/predictions?limit=1&predicted_class=1"),
   ]);
   if (seq !== overviewSeq) return;
+  const failed = [];
+  if (m.status === "rejected") {
+    // No mostrar métricas de otra API o de una carga anterior
+    ["#kAuc", "#kAcc", "#kModel", "#mAlgo", "#mPrec", "#mRec", "#mF1"].forEach((id) => ($(id).textContent = "—"));
+    ["#kAucSub", "#kAccSub", "#kModelSub"].forEach((id) => ($(id).textContent = "No disponible"));
+    $("#mVersion").textContent = "Métricas no disponibles";
+    failed.push("métricas");
+  }
+  if (all.status === "rejected") {
+    $("#kTotal").textContent = "—";
+    $("#kTotalSub").textContent = "No disponible";
+    $("#recentList").innerHTML = `<li class="muted">No se pudieron cargar las predicciones.</li>`;
+    failed.push("predicciones");
+  } else if (late.status === "rejected") {
+    $("#kTotalSub").textContent = "Desglose no disponible";
+  }
+  if (failed.length) toast(`No se pudieron cargar: ${failed.join(" y ")}`, true);
   if (m.status === "fulfilled") {
     const v = m.value, th = v.quality_thresholds;
     $("#kAuc").textContent = v.roc_auc.toFixed(3);

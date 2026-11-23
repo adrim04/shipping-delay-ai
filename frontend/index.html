@@ -29,11 +29,11 @@
   <div class="shell">
     <!-- ============ BARRA LATERAL ============ -->
     <aside class="sidebar">
-      <nav class="side-nav" role="tablist" aria-label="Secciones">
-        <button class="tab active" data-tab="predict" title="Predecir" aria-label="Predecir"><svg><use href="#i-predict"/></svg></button>
-        <button class="tab" data-tab="history" title="Historial" aria-label="Historial"><svg><use href="#i-history"/></svg></button>
-        <button class="tab" data-tab="metrics" title="Métricas del modelo" aria-label="Métricas del modelo"><svg><use href="#i-metrics"/></svg></button>
-        <button class="tab" data-tab="data" title="Datos y reentrenamiento" aria-label="Datos y reentrenamiento"><svg><use href="#i-data"/></svg></button>
+      <nav class="side-nav" role="tablist" aria-label="Secciones" aria-orientation="vertical">
+        <button class="tab active" data-tab="predict" role="tab" id="tabbtn-predict" aria-controls="tab-predict" aria-selected="true" tabindex="0" title="Predecir" aria-label="Predecir"><svg><use href="#i-predict"/></svg></button>
+        <button class="tab" data-tab="history" role="tab" id="tabbtn-history" aria-controls="tab-history" aria-selected="false" tabindex="-1" title="Historial" aria-label="Historial"><svg><use href="#i-history"/></svg></button>
+        <button class="tab" data-tab="metrics" role="tab" id="tabbtn-metrics" aria-controls="tab-metrics" aria-selected="false" tabindex="-1" title="Métricas del modelo" aria-label="Métricas del modelo"><svg><use href="#i-metrics"/></svg></button>
+        <button class="tab" data-tab="data" role="tab" id="tabbtn-data" aria-controls="tab-data" aria-selected="false" tabindex="-1" title="Datos y reentrenamiento" aria-label="Datos y reentrenamiento"><svg><use href="#i-data"/></svg></button>
       </nav>
       <div class="side-bottom">
         <a class="side-link" id="docsLink" href="/docs" target="_blank" rel="noopener" title="Documentación Swagger" aria-label="Documentación Swagger"><svg><use href="#i-doc"/></svg></a>
@@ -87,7 +87,7 @@
 
       <main>
         <!-- ============ PREDECIR ============ -->
-        <section id="tab-predict" class="panel active">
+        <section id="tab-predict" class="panel active" role="tabpanel" aria-labelledby="tabbtn-predict" tabindex="0">
           <div class="dash-grid">
             <form id="predictForm" class="card form-card">
               <div class="card-head">
@@ -180,7 +180,7 @@
         </section>
 
         <!-- ============ HISTORIAL ============ -->
-        <section id="tab-history" class="panel">
+        <section id="tab-history" class="panel" role="tabpanel" aria-labelledby="tabbtn-history" tabindex="0">
           <div class="card">
             <div class="card-head">
               <h2>Historial de predicciones</h2>
@@ -221,7 +221,7 @@
         </section>
 
         <!-- ============ MÉTRICAS ============ -->
-        <section id="tab-metrics" class="panel">
+        <section id="tab-metrics" class="panel" role="tabpanel" aria-labelledby="tabbtn-metrics" tabindex="0">
           <div id="kpis" class="kpis"></div>
           <div class="grid-2">
             <div class="card"><h2>Matriz de confusión (conjunto de prueba)</h2><div id="cmatrix"></div></div>
@@ -232,7 +232,7 @@
         </section>
 
         <!-- ============ DATOS / REENTRENAMIENTO ============ -->
-        <section id="tab-data" class="panel">
+        <section id="tab-data" class="panel" role="tabpanel" aria-labelledby="tabbtn-data" tabindex="0">
           <div class="grid-2">
             <div class="card">
               <h2>1 · Subir archivo de entrenamiento</h2>
