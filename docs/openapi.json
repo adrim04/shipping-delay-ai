@@ -147,6 +147,9 @@
               }
             }
           },
+          "404": {
+            "description": "Versión de modelo no encontrada"
+          },
           "422": {
             "description": "Validation Error",
             "content": {

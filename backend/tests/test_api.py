@@ -45,6 +45,7 @@ def test_history_filter_by_model_version(client):
     h = client.get(f"{API}/predictions", params={"model_version": version}).json()
     assert h["total"] >= 1 and all(p["model_version"] == version for p in h["items"])
     assert client.get(f"{API}/predictions", params={"model_version": "v-no-existe"}).status_code == 404
+    assert client.get(f"{API}/predictions", params={"model_version": ""}).status_code == 404
 
 
 def test_predict_validation(client):

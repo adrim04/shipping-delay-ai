@@ -79,7 +79,8 @@ def create_prediction(payload: schemas.ShipmentInput, db: Session = Depends(get_
 
 # ------------------------------------------------------------------ historial
 @app.get(f"{API}/predictions", response_model=schemas.PredictionHistory, tags=["Historial"],
-         summary="Historial de predicciones (datos enviados y resultado)")
+         summary="Historial de predicciones (datos enviados y resultado)",
+         responses={404: {"description": "Versión de modelo no encontrada"}})
 def list_predictions(limit: int = Query(20, ge=1, le=500), offset: int = Query(0, ge=0),
                      predicted_class: int | None = Query(None, ge=0, le=1,
                                                          description="Filtrar por clase"),
@@ -88,7 +89,7 @@ def list_predictions(limit: int = Query(20, ge=1, le=500), offset: int = Query(0
     q = db.query(models.Prediction)
     if predicted_class is not None:
         q = q.filter(models.Prediction.predicted_class == predicted_class)
-    if model_version:
+    if model_version is not None:
         mv = db.query(models.ModelVersion).filter_by(version=model_version).first()
         if not mv:
             raise HTTPException(404, f"Versión de modelo no encontrada: {model_version}")
