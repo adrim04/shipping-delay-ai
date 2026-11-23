@@ -83,10 +83,16 @@ def create_prediction(payload: schemas.ShipmentInput, db: Session = Depends(get_
 def list_predictions(limit: int = Query(20, ge=1, le=500), offset: int = Query(0, ge=0),
                      predicted_class: int | None = Query(None, ge=0, le=1,
                                                          description="Filtrar por clase"),
+                     model_version: str | None = Query(None, description="Filtrar por versión del modelo"),
                      db: Session = Depends(get_db)):
     q = db.query(models.Prediction)
     if predicted_class is not None:
         q = q.filter(models.Prediction.predicted_class == predicted_class)
+    if model_version:
+        mv = db.query(models.ModelVersion).filter_by(version=model_version).first()
+        if not mv:
+            raise HTTPException(404, f"Versión de modelo no encontrada: {model_version}")
+        q = q.filter(models.Prediction.model_version_id == mv.id)
     total = q.count()
     rows = q.order_by(models.Prediction.id.desc()).offset(offset).limit(limit).all()
     items = []

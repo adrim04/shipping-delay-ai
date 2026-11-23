@@ -116,6 +116,24 @@
               "title": "Predicted Class"
             },
             "description": "Filtrar por clase"
+          },
+          {
+            "name": "model_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por versión del modelo",
+              "title": "Model Version"
+            },
+            "description": "Filtrar por versión del modelo"
           }
         ],
         "responses": {
