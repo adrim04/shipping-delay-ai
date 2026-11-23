@@ -98,6 +98,7 @@ async function loadOverview() {
     failed.push("predicciones");
   } else if (late.status === "rejected") {
     $("#kTotalSub").textContent = "Desglose no disponible";
+    failed.push("desglose de predicciones");
   }
   if (failed.length) toast(`No se pudieron cargar: ${failed.join(" y ")}`, true);
   if (m.status === "fulfilled") {
