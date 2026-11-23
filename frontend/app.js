@@ -32,23 +32,71 @@ const labelPill = (cls, label) => `<span class="pill ${cls ? "late" : "ontime"}"
 async function checkHealth() {
   try {
     const h = await api("/health");
-    $("#statusDot").classList.add("on");
-    $("#statusText").textContent = `conectado · modelo ${h.active_model}`;
+    ["#statusDot", "#statusDot2"].forEach((d) => $(d).classList.add("on"));
+    $("#statusText").textContent = `Conectado · ${h.active_model}`;
   } catch {
-    $("#statusDot").classList.remove("on");
-    $("#statusText").textContent = "sin conexión";
+    ["#statusDot", "#statusDot2"].forEach((d) => $(d).classList.remove("on"));
+    $("#statusText").textContent = "Sin conexión";
   }
 }
 
 // ---------------------------------------------------------------- pestañas
 const loaders = { history: loadHistory, metrics: loadMetrics, data: loadDatasets };
-document.querySelectorAll(".tab").forEach((btn) =>
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b === btn));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${btn.dataset.tab}`));
-    loaders[btn.dataset.tab]?.();
-  })
-);
+const titles = {
+  predict: ["Predecir retrasos", "Shipping Delay AI · Predicción de retrasos en envíos de e-commerce"],
+  history: ["Historial", "Predicciones anteriores: datos enviados y resultado"],
+  metrics: ["Métricas del modelo", "Rendimiento del modelo activo y de sus versiones"],
+  data: ["Datos y reentrenamiento", "Sube datos actualizados y reentrena el modelo"],
+};
+function goTo(tab) {
+  document.querySelectorAll(".tab").forEach((b) => {
+    const on = b.dataset.tab === tab;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on);
+  });
+  document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${tab}`));
+  [$("#pageTitle").textContent, $("#pageSubtitle").textContent] = titles[tab];
+  $(".kpi-row").hidden = tab !== "predict";   // el resumen se muestra en el panel principal; Métricas tiene el detalle
+  loaders[tab]?.();
+}
+document.querySelectorAll(".tab").forEach((btn) => btn.addEventListener("click", () => goTo(btn.dataset.tab)));
+document.querySelectorAll("[data-goto]").forEach((btn) => btn.addEventListener("click", () => goTo(btn.dataset.goto)));
+
+// ---------------------------------------------------------------- resumen  (GET /metrics, GET /predictions)
+let overviewSeq = 0;
+async function loadOverview() {
+  const seq = ++overviewSeq;
+  const [m, all, late] = await Promise.allSettled([
+    api("/metrics"), api("/predictions?limit=4"), api("/predictions?limit=1&predicted_class=1"),
+  ]);
+  if (seq !== overviewSeq) return;
+  if (m.status === "fulfilled") {
+    const v = m.value, th = v.quality_thresholds;
+    $("#kAuc").textContent = v.roc_auc.toFixed(3);
+    $("#kAucSub").textContent = `Umbral ≥ ${th.roc_auc} ${v.roc_auc >= th.roc_auc ? "✓" : "✗"}`;
+    $("#kAcc").textContent = pct(v.accuracy);
+    $("#kAccSub").textContent = `Umbral ≥ ${pct(th.accuracy)} ${v.accuracy >= th.accuracy ? "✓" : "✗"}`;
+    $("#kModel").textContent = v.algorithm;
+    $("#kModelSub").textContent = v.version;
+    $("#mAlgo").textContent = v.algorithm;
+    $("#mVersion").textContent = `${v.version} · ${v.train_rows}/${v.test_rows} filas`;
+    $("#mPrec").textContent = v.precision.toFixed(2);
+    $("#mRec").textContent = v.recall.toFixed(2);
+    $("#mF1").textContent = v.f1_score.toFixed(2);
+  }
+  if (all.status === "fulfilled") {
+    const h = all.value;
+    $("#kTotal").textContent = h.total.toLocaleString("es-BO");
+    if (late.status === "fulfilled") {
+      $("#kTotalSub").textContent = h.total ? `${late.value.total} con retraso · ${h.total - late.value.total} a tiempo` : "Sin predicciones aún";
+    }
+    $("#recentList").innerHTML = h.items.length ? h.items.map((p) => `<li class="${p.predicted_class ? "late" : ""}">
+        <div><div class="r-title">Envío #${p.id} · ${esc(p.mode_of_shipment)}, almacén ${esc(p.warehouse_block)}</div>
+        <div class="r-sub">${fmtDate(p.created_at)}</div></div>
+        <span class="pill ${p.predicted_class ? "late" : "ontime"}">${pct(p.probability_delay)}</span></li>`).join("")
+      : `<li class="muted">Aún no hay predicciones.</li>`;
+  }
+}
 
 // ---------------------------------------------------------------- predicción  (POST /predictions)
 $("#predictForm").addEventListener("submit", async (e) => {
@@ -65,9 +113,12 @@ $("#predictForm").addEventListener("submit", async (e) => {
     const lbl = $("#resultLabel");
     lbl.textContent = r.predicted_label;
     lbl.className = `big-label ${r.predicted_class ? "late" : "ontime"}`;
-    $("#gaugeFill").style.width = pct(r.probability_delay);
+    const arc = $("#gaugeArc"), len = arc.getTotalLength();
+    arc.style.strokeDasharray = `${len * r.probability_delay} ${len}`;
+    arc.classList.toggle("late", !!r.predicted_class);
     $("#probText").textContent = pct(r.probability_delay);
     $("#rId").textContent = r.id; $("#rVersion").textContent = r.model_version; $("#rDate").textContent = fmtDate(r.created_at);
+    loadOverview();
   } catch (err) { toast(`Error: ${err.message}`, true); }
 });
 
@@ -195,7 +246,7 @@ async function loadMetrics() {
     const cm = m.confusion_matrix, tot = cm.tn + cm.fp + cm.fn + cm.tp;
     const cell = (v, good, name) => {
       const a = 0.15 + 0.75 * (v / tot) * 2;
-      const bg = good ? `rgba(46,125,107,${a})` : `rgba(217,130,43,${a})`;
+      const bg = good ? `rgba(93,125,104,${a})` : `rgba(192,98,63,${a * 0.8})`;
       return `<div class="cell" style="background:${bg}">${v}<small>${name}</small></div>`;
     };
     $("#cmatrix").innerHTML = `<div class="cm">
@@ -265,15 +316,20 @@ $("#retrainBtn").addEventListener("click", async () => {
     const m = r.new_model;
     showMsg($("#retrainMsg"), `<b>${r.status}</b> · ${esc(r.message)}<br>ROC-AUC ${m.roc_auc.toFixed(3)} · Accuracy ${m.accuracy.toFixed(3)} · F1 ${m.f1_score.toFixed(3)}` +
       (r.previous_model_version ? `<br>Modelo anterior: <code>${esc(r.previous_model_version)}</code>` : ""), r.status === "COMPLETADO" ? "ok" : "warn");
-    checkHealth();
+    checkHealth(); loadOverview();
   } catch (err) { showMsg($("#retrainMsg"), `✗ ${esc(err.message)}`, "err"); }
   finally { btn.disabled = false; btn.textContent = "Reentrenar"; }
 });
 
 // ---------------------------------------------------------------- inicio
+const docsUrl = () => API.replace(/\/api\/v1\/?$/, "") + "/docs";
 $("#apiUrl").value = API;
+$("#docsLink").href = docsUrl();
+$("#pingBtn").addEventListener("click", () => { checkHealth(); loadOverview(); });
 $("#apiUrl").addEventListener("change", (e) => {
-  API = e.target.value.replace(/\/$/, ""); localStorage.setItem("apiUrl", API); checkHealth();
+  API = e.target.value.replace(/\/$/, ""); localStorage.setItem("apiUrl", API);
+  $("#docsLink").href = docsUrl(); checkHealth(); loadOverview();
 });
 checkHealth();
+loadOverview();
 setInterval(checkHealth, 15000);
