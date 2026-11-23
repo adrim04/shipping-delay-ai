@@ -164,8 +164,10 @@ $("#histTable tbody").addEventListener("click", (e) => {
 });
 $("#detailClose").addEventListener("click", () => {
   detailSeq++;                                // invalida una consulta de detalle pendiente
+  const selected = document.querySelector("#histTable tbody tr.selected .link-btn");
   $("#detailCard").hidden = true;
   document.querySelectorAll("#histTable tbody tr.selected").forEach((tr) => tr.classList.remove("selected"));
+  (selected || $("#histRefresh")).focus();    // devuelve el foco al historial
 });
 $("#histVersion").addEventListener("change", () => { histOffset = 0; loadHistory(); });
 
